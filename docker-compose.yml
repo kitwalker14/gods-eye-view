@@ -1,0 +1,58 @@
+# =============================================================================
+# God's Eye View — live spatial-intelligence 3D globe
+#
+# Compose project: godseye
+# Host: 192.168.51.171
+#
+# Start:   docker compose -p godseye up -d --build
+# Stop:    docker compose -p godseye down
+# Logs:    docker compose -p godseye logs -f
+# =============================================================================
+
+services:
+  godseye:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: godseye:local
+    container_name: godseye
+    restart: unless-stopped
+    # Provider keys (keyless works out of the box). See .env:
+    env_file:
+      - .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: "4173"
+      GEV_ALLOWED_HOSTS: godseye.lwk.space
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=00-infra_default"
+      - "traefik.http.routers.godseye.rule=Host(`godseye.lwk.space`)"
+      - "traefik.http.routers.godseye.entrypoints=websecure"
+      - "traefik.http.routers.godseye.tls=true"
+      - "traefik.http.routers.godseye.tls.certresolver=prod"
+      - "traefik.http.routers.godseye.service=godseye"
+      - "traefik.http.routers.godseye.middlewares=godseye-stripcdn"
+      - "traefik.http.services.godseye.loadbalancer.server.port=4173"
+      # Strip CDN/reverse-proxy headers so the app's same-site gate (which
+      # rejects any proxied request) admits legitimate browser traffic. CSRF
+      # protection is preserved via the Sec-Fetch-Site: same-origin check.
+      - "traefik.http.middlewares.godseye-stripcdn.headers.customRequestHeaders.X-Forwarded-For="
+      - "traefik.http.middlewares.godseye-stripcdn.headers.customRequestHeaders.X-Forwarded-Host="
+      - "traefik.http.middlewares.godseye-stripcdn.headers.customRequestHeaders.X-Forwarded-Port="
+      - "traefik.http.middlewares.godseye-stripcdn.headers.customRequestHeaders.X-Forwarded-Proto="
+      - "traefik.http.middlewares.godseye-stripcdn.headers.customRequestHeaders.X-Real-Ip="
+      - "traefik.http.middlewares.godseye-stripcdn.headers.customRequestHeaders.Forwarded="
+      - "traefik.http.middlewares.godseye-stripcdn.headers.customRequestHeaders.Via="
+      - "traefik.http.middlewares.godseye-stripcdn.headers.customRequestHeaders.Cf-Connecting-Ip="
+      - "traefik.http.middlewares.godseye-stripcdn.headers.customRequestHeaders.Cf-Ray="
+      - "traefik.http.middlewares.godseye-stripcdn.headers.customRequestHeaders.Origin="
+
+networks:
+  default:
+    name: godseye_default
+  traefik:
+    name: 00-infra_default
+    external: true
